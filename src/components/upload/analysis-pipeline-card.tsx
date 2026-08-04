@@ -86,7 +86,7 @@ export function AnalysisPipelineCard() {
               <div className="mt-2 flex items-center gap-3">
                 <Progress
                   value={f.progress}
-                  className="h-1.5 bg-muted [&>[data-slot=progress-indicator]]:bg-ai-cyan"
+                  className="h-1.5 bg-muted [&>div]:bg-ai-cyan"
                 />
                 <span className="w-10 shrink-0 text-right font-mono text-xs text-muted-foreground">
                   {f.progress}%
