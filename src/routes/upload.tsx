@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { UploadCloud } from "lucide-react";
+import { DropzoneCard } from "@/components/upload/dropzone-card";
+import { AnalysisPipelineCard } from "@/components/upload/analysis-pipeline-card";
+import { ScanConfigBar } from "@/components/upload/scan-config-bar";
+
 
 export const Route = createFileRoute("/upload")({
   component: UploadPage,
