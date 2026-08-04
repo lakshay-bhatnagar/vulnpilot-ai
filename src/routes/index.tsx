@@ -1,24 +1,40 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Shield, ScanLine } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
   component: Index,
+  head: () => ({
+    meta: [
+      { title: "Dashboard | VulnPilot AI" },
+      { name: "description", content: "VulnPilot AI dashboard" },
+      { property: "og:title", content: "Dashboard | VulnPilot AI" },
+      { property: "og:description", content: "VulnPilot AI dashboard" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="flex min-h-[calc(100vh-7rem)] flex-col items-center justify-center">
+      <div className="flex max-w-md flex-col items-center text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-border bg-card shadow-sm">
+          <Shield className="h-10 w-10 text-ai-cyan" />
+        </div>
+        <h1 className="mt-6 text-2xl font-semibold tracking-tight text-foreground">
+          Welcome to VulnPilot AI
+        </h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Select a target system and run a scan to start your AI-powered application security
+          assessment.
+        </p>
+        <Button className="mt-6 gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+          <ScanLine className="h-4 w-4" />
+          Run Your First Scan
+        </Button>
+      </div>
     </div>
   );
 }
