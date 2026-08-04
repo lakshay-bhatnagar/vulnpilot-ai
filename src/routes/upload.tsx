@@ -20,14 +20,18 @@ export const Route = createFileRoute("/upload")({
 
 function UploadPage() {
   return (
-    <div className="flex min-h-[calc(100vh-7rem)] flex-col items-center justify-center">
-      <div className="flex max-w-md flex-col items-center text-center">
-        <UploadCloud className="h-12 w-12 text-muted-foreground" />
-        <h1 className="mt-4 text-xl font-semibold text-foreground">File Upload & Scan</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Upload source code, binaries, or container images to scan.
+    <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">File Upload & Scan</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Ingest scanner artifacts and let the AI copilot normalise, deduplicate and
+          prioritise findings.
         </p>
       </div>
+      <ScanConfigBar />
+      <DropzoneCard />
+      <AnalysisPipelineCard />
     </div>
   );
+
 }
