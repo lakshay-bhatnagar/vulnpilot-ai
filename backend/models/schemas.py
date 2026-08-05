@@ -1,0 +1,48 @@
+from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, Field
+
+
+class Severity(str, Enum):
+    CRITICAL = "Critical"
+    HIGH = "High"
+    MEDIUM = "Medium"
+    LOW = "Low"
+
+
+class VulnerabilityItem(BaseModel):
+    title: str
+    tool_source: str
+    severity: Severity
+    target_url: str
+    cwe: Optional[str] = None
+    owasp_category: Optional[str] = None
+    raw_evidence: Optional[str] = None
+    request_payload: Optional[str] = None
+    generated_poc: Optional[str] = None
+    remediation: Optional[str] = None
+    mitre_attack: Optional[str] = Field(
+        default=None,
+        description="MITRE ATT&CK technique ID enriched by the AI pipeline",
+    )
+
+
+class SeverityBreakdown(BaseModel):
+    critical: int = 0
+    high: int = 0
+    medium: int = 0
+    low: int = 0
+
+
+class ScanSummaryMetrics(BaseModel):
+    total_raw_findings: int
+    unique_findings: int
+    deduplicated_count: int
+    severity_breakdown: SeverityBreakdown
+    tools_detected: list[str]
+
+
+class ScanAnalysisResponse(BaseModel):
+    findings: list[VulnerabilityItem]
+    summary: ScanSummaryMetrics

@@ -13,6 +13,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { TopHeader } from "@/components/top-header";
+import { Toaster } from "@/components/ui/sonner";
+import { ScanProvider } from "@/lib/scan-context";
 
 function NotFoundComponent() {
   return (
@@ -134,17 +136,20 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider defaultOpen={true}>
-        <div className="flex min-h-svh w-full">
-          <AppSidebar />
-          <SidebarInset className="flex flex-col">
-            <TopHeader />
-            <main className="flex-1 overflow-auto p-6">
-              <Outlet />
-            </main>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
+      <ScanProvider>
+        <SidebarProvider defaultOpen={true}>
+          <div className="flex min-h-svh w-full">
+            <AppSidebar />
+            <SidebarInset className="flex flex-col">
+              <TopHeader />
+              <main className="flex-1 overflow-auto p-6">
+                <Outlet />
+              </main>
+            </SidebarInset>
+          </div>
+          <Toaster richColors closeButton />
+        </SidebarProvider>
+      </ScanProvider>
     </QueryClientProvider>
   );
 }

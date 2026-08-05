@@ -10,13 +10,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function ScanConfigBar() {
+export function ScanConfigBar({
+  disabled = false,
+  onStartAnalysis,
+}: {
+  disabled?: boolean;
+  onStartAnalysis?: () => void;
+}) {
   return (
     <Card className="border-border/60 bg-card">
       <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-end">
         <div className="flex-1 space-y-1.5">
           <Label className="text-xs text-muted-foreground">Target Environment</Label>
-          <Select defaultValue="production">
+          <Select defaultValue="production" disabled={disabled}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -30,7 +36,7 @@ export function ScanConfigBar() {
 
         <div className="flex-1 space-y-1.5">
           <Label className="text-xs text-muted-foreground">LLM Model</Label>
-          <Select defaultValue="claude-3-7-sonnet">
+          <Select defaultValue="claude-3-7-sonnet" disabled={disabled}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -43,11 +49,14 @@ export function ScanConfigBar() {
         </div>
 
         <Button
+          type="button"
+          disabled={disabled}
+          onClick={onStartAnalysis}
           className="border border-ai-cyan/60 bg-ai-cyan/10 text-ai-cyan shadow-[0_0_20px_-4px_var(--ai-cyan)] transition-shadow hover:bg-ai-cyan/20 hover:shadow-[0_0_28px_-2px_var(--ai-cyan)] lg:w-auto"
           size="lg"
         >
           <Sparkles className="mr-2 h-4 w-4" />
-          Start AI Security Analysis
+          View Vulnerability Dashboard
         </Button>
       </CardContent>
     </Card>

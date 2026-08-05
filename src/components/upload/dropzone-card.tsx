@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { UploadCloud, FolderOpen } from "lucide-react";
+import { UploadCloud, FolderOpen, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -12,17 +12,43 @@ const SUPPORTED_TOOLS = [
   "Wireshark PCAP",
 ];
 
-export function DropzoneCard({ onFiles }: { onFiles?: (names: string[]) => void }) {
+const ACCEPTED_EXTENSIONS = [".xml", ".json"];
+
+function isAcceptedFile(file: File): boolean {
+  const lower = file.name.toLowerCase();
+  return ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+export function DropzoneCard({
+  onFilesSelected,
+  disabled = false,
+}: {
+  onFilesSelected?: (files: File[]) => void;
+  disabled?: boolean;
+}) {
   const [dragging, setDragging] = useState(false);
+
+  const handleFiles = useCallback(
+    (fileList: FileList | File[]) => {
+      if (disabled) return;
+
+      const files = Array.from(fileList);
+      const accepted = files.filter(isAcceptedFile);
+
+      if (accepted.length > 0) {
+        onFilesSelected?.(accepted);
+      }
+    },
+    [disabled, onFilesSelected],
+  );
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setDragging(false);
-      const names = Array.from(e.dataTransfer.files).map((f) => f.name);
-      if (names.length) onFiles?.(names);
+      handleFiles(e.dataTransfer.files);
     },
-    [onFiles],
+    [handleFiles],
   );
 
   return (
@@ -31,12 +57,13 @@ export function DropzoneCard({ onFiles }: { onFiles?: (names: string[]) => void 
         <label
           onDragOver={(e) => {
             e.preventDefault();
-            setDragging(true);
+            if (!disabled) setDragging(true);
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
           className={cn(
             "flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-12 text-center transition-colors",
+            disabled && "cursor-not-allowed opacity-60",
             dragging
               ? "border-ai-cyan bg-ai-cyan/5"
               : "border-border hover:border-ai-cyan/50 hover:bg-muted/30",
@@ -45,24 +72,32 @@ export function DropzoneCard({ onFiles }: { onFiles?: (names: string[]) => void 
           <input
             type="file"
             multiple
-            accept=".xml,.json,.nessus,.pcap"
+            accept=".xml,.json"
+            disabled={disabled}
             className="sr-only"
-            onChange={(e) =>
-              onFiles?.(Array.from(e.target.files ?? []).map((f) => f.name))
-            }
+            onChange={(e) => {
+              if (e.target.files) handleFiles(e.target.files);
+              e.target.value = "";
+            }}
           />
           <div className="rounded-full border border-ai-cyan/30 bg-ai-cyan/10 p-4">
-            <UploadCloud className="h-8 w-8 text-ai-cyan" />
+            {disabled ? (
+              <Loader2 className="h-8 w-8 animate-spin text-ai-cyan" />
+            ) : (
+              <UploadCloud className="h-8 w-8 text-ai-cyan" />
+            )}
           </div>
           <h3 className="mt-4 text-base font-semibold text-foreground">
-            Drop scan artifacts here
+            {disabled ? "Analyzing scan artifacts…" : "Drop scan artifacts here"}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            or click to browse — multiple files supported
+            {disabled
+              ? "Uploads are disabled while the AI pipeline is running"
+              : "or click to browse — Burp .xml or Nuclei .json"}
           </p>
           <p className="mt-3 flex items-center gap-1.5 font-mono text-xs text-muted-foreground/80">
             <FolderOpen className="h-3.5 w-3.5" />
-            .xml · .json · .nessus · .pcap
+            .xml · .json
           </p>
         </label>
 

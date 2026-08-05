@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { DropzoneCard } from "@/components/upload/dropzone-card";
 import { AnalysisPipelineCard } from "@/components/upload/analysis-pipeline-card";
 import { ScanConfigBar } from "@/components/upload/scan-config-bar";
-
+import { useScan } from "@/lib/scan-context";
 
 export const Route = createFileRoute("/upload")({
   component: UploadPage,
@@ -19,6 +19,16 @@ export const Route = createFileRoute("/upload")({
 });
 
 function UploadPage() {
+  const navigate = useNavigate();
+  const { uploadFilesBatch, isLoading } = useScan();
+
+  const handleFilesSelected = async (files: File[]) => {
+    const success = await uploadFilesBatch(files);
+    if (success) {
+      navigate({ to: "/vulnerabilities" });
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 p-6">
       <div>
@@ -28,10 +38,9 @@ function UploadPage() {
           prioritise findings.
         </p>
       </div>
-      <ScanConfigBar />
-      <DropzoneCard />
+      <ScanConfigBar disabled={isLoading} onStartAnalysis={() => navigate({ to: "/vulnerabilities" })} />
+      <DropzoneCard onFilesSelected={handleFilesSelected} disabled={isLoading} />
       <AnalysisPipelineCard />
     </div>
   );
-
 }

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   ShieldAlert,
@@ -34,13 +34,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useScan } from "@/lib/scan-context";
 import {
-  findings,
-  metrics,
-  owaspCategories,
-  toolSources,
   type Finding,
   type Severity,
+  type DashboardMetrics,
 } from "@/lib/vulnerability-data";
 
 export const Route = createFileRoute("/vulnerabilities")({
@@ -124,7 +122,7 @@ function MetricCard({
   );
 }
 
-function MetricsBar() {
+function MetricsBar({ metrics }: { metrics: DashboardMetrics }) {
   const s = metrics.severityCounts;
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -160,7 +158,7 @@ function MetricsBar() {
             {s.low} Low
           </Badge>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">Post-triage distribution across 12 root causes</p>
+        <p className="mt-2 text-xs text-muted-foreground">Post-triage distribution across {metrics.rootCauses} root causes</p>
       </MetricCard>
 
       <MetricCard label="AI Risk Score">
@@ -549,7 +547,8 @@ function InspectorTabs({ finding }: { finding: Finding }) {
 }
 
 function VulnerabilitiesPage() {
-  const [selectedId, setSelectedId] = useState<string>("VP-1041");
+  const { findings, metrics, owaspCategories, toolSources, hasScanData } = useScan();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [severity, setSeverity] = useState<string>("all");
   const [owasp, setOwasp] = useState<string>("all");
   const [tool, setTool] = useState<string>("all");
@@ -563,10 +562,28 @@ function VulnerabilitiesPage() {
       if (query && !`${f.title} ${f.url}`.toLowerCase().includes(query.toLowerCase())) return false;
       return true;
     });
-  }, [severity, owasp, tool, query]);
+  }, [findings, severity, owasp, tool, query]);
 
-  const selected: Finding =
-    findings.find((f) => f.id === selectedId) ?? filtered[0] ?? findings[0]!;
+  const selected: Finding | undefined =
+    findings.find((f) => f.id === selectedId) ?? filtered[0] ?? findings[0];
+
+  if (!hasScanData || !selected) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col items-center justify-center gap-4 py-24 text-center">
+        <ShieldAlert className="h-12 w-12 text-muted-foreground" />
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">No scan data yet</h1>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">
+            Upload a Burp Suite XML or Nuclei JSON export to populate the vulnerability
+            dashboard with AI-enriched findings.
+          </p>
+        </div>
+        <Button asChild className="gap-2">
+          <Link to="/upload">Upload scan artifacts</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5">
@@ -578,7 +595,7 @@ function VulnerabilitiesPage() {
         </p>
       </div>
 
-      <MetricsBar />
+      <MetricsBar metrics={metrics} />
 
       <Separator className="bg-border/60" />
 
