@@ -238,8 +238,10 @@ function FiltersBar({
   setSeverity,
   owasp,
   setOwasp,
+  owaspCategories,
   tool,
   setTool,
+  toolSources,
   query,
   setQuery,
 }: {
@@ -247,8 +249,10 @@ function FiltersBar({
   setSeverity: (v: string) => void;
   owasp: string;
   setOwasp: (v: string) => void;
+  owaspCategories: string[];
   tool: string;
   setTool: (v: string) => void;
+  toolSources: string[];
   query: string;
   setQuery: (v: string) => void;
 }) {
@@ -607,8 +611,10 @@ function VulnerabilitiesPage() {
             setSeverity={setSeverity}
             owasp={owasp}
             setOwasp={setOwasp}
+            owaspCategories={owaspCategories}
             tool={tool}
             setTool={setTool}
+            toolSources={toolSources}
             query={query}
             setQuery={setQuery}
           />
