@@ -190,12 +190,14 @@ export function ScanProvider({ children }: { children: ReactNode }) {
         });
 
         try {
+          console.debug("[VulnPilot upload] state before API response mapping", accumulated);
           updateUploadFile(fileState.id, { progress: 45 });
           const response = await uploadScanFile(file);
           updateUploadFile(fileState.id, { progress: 85 });
 
           const mapped = mapScanAnalysisResponse(response, accumulated.findings.length);
           accumulated = mergeScanResults(accumulated, mapped);
+          console.debug("[VulnPilot upload] state after API response mapping", accumulated);
 
           totalRaw += response.summary.total_raw_findings;
           totalUnique += response.summary.unique_findings;
@@ -203,6 +205,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
 
           updateUploadFile(fileState.id, { status: "complete", progress: 100 });
         } catch (error) {
+          console.error("[VulnPilot upload] file analysis failed", error);
           const message = error instanceof Error ? error.message : "Upload failed";
           updateUploadFile(fileState.id, { status: "error", progress: 100 });
           toast.error(`Failed to analyze ${file.name}`, { description: message });
@@ -213,6 +216,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       setMetrics(accumulated.metrics);
       setOwaspCategories(accumulated.owaspCategories);
       setToolSources(accumulated.toolSources);
+      console.debug("[VulnPilot upload] committing scan state", accumulated);
 
       if (accumulated.findings.length > 0) {
         updatePipelineStep(0, {

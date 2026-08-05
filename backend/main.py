@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,6 +10,7 @@ from backend.parsers.nuclei_parser import parse_nuclei_json
 from backend.services.ai_engine import process_vulnerabilities
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.app_name,
@@ -17,7 +20,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,6 +74,8 @@ async def upload_scan(file: UploadFile = File(...)) -> ScanAnalysisResponse:
         raise HTTPException(status_code=422, detail="No vulnerabilities were found in the uploaded file.")
 
     try:
-        return await process_vulnerabilities(findings)
+        analysis = await process_vulnerabilities(findings)
+        logger.info("[Scan upload] Returning response: %s", analysis.model_dump(mode="json"))
+        return analysis
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
