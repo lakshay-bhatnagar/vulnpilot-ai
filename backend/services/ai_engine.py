@@ -95,12 +95,13 @@ async def process_vulnerabilities(findings: list[VulnerabilityItem]) -> ScanAnal
     
     # Validated OpenRouter free model slugs
     candidate_models = [
-        settings.openrouter_model,
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "deepseek/deepseek-r1:free",
-        "google/gemini-2.0-flash-exp:free",
-        "qwen/qwen-2.5-coder-32b-instruct:free",
-    ]
+    settings.openrouter_model,
+    "google/gemma-4-31b-it:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "openai/gpt-oss-20b:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    ] 
     # Remove duplicates while preserving list order
     fallback_models = list(dict.fromkeys(candidate_models))
 
