@@ -93,13 +93,13 @@ async def process_vulnerabilities(findings: list[VulnerabilityItem]) -> ScanAnal
     raw_count = len(findings)
     scanner_payload = [finding.model_dump(mode="json") for finding in findings]
     
-    # Primary model configured in .env plus reliable $0/M fallback candidates
+    # Validated OpenRouter free model slugs
     candidate_models = [
         settings.openrouter_model,
-        "google/gemma-2-9b-it:free",
         "meta-llama/llama-3.3-70b-instruct:free",
+        "deepseek/deepseek-r1:free",
+        "google/gemini-2.0-flash-exp:free",
         "qwen/qwen-2.5-coder-32b-instruct:free",
-        "mistralai/mistral-7b-instruct:free",
     ]
     # Remove duplicates while preserving list order
     fallback_models = list(dict.fromkeys(candidate_models))
@@ -134,6 +134,10 @@ async def process_vulnerabilities(findings: list[VulnerabilityItem]) -> ScanAnal
                     headers=headers,
                     json=request_payload,
                 )
+                
+                if response.status_code != 200:
+                    print(f"[OpenRouter] Model '{model}' responded with HTTP {response.status_code}: {response.text[:200]}")
+                
                 response.raise_for_status()
 
                 completion = response.json()
@@ -146,7 +150,7 @@ async def process_vulnerabilities(findings: list[VulnerabilityItem]) -> ScanAnal
                 return analysis.model_copy(update={"summary": _build_summary(raw_count, analysis.findings)})
 
             except Exception as exc:
-                print(f"[OpenRouter] Model '{model}' failed ({type(exc).__name__}). Retrying with next fallback model...")
+                print(f"[OpenRouter] Model '{model}' failed ({type(exc).__name__}). Trying next fallback model...")
                 last_exception = exc
                 continue
 
