@@ -173,6 +173,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
 
       let totalRaw = 0;
       let totalUnique = 0;
+      let completedUploads = 0;
 
       for (let index = 0; index < supported.length; index += 1) {
         const file = supported[index]!;
@@ -198,6 +199,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
 
           totalRaw += response.summary.total_raw_findings;
           totalUnique += response.summary.unique_findings;
+          completedUploads += 1;
 
           updateUploadFile(fileState.id, { status: "complete", progress: 100 });
         } catch (error) {
@@ -212,15 +214,10 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       setOwaspCategories(accumulated.owaspCategories);
       setToolSources(accumulated.toolSources);
 
-      const successCount = queuedFiles.filter((_, i) => {
-        const file = supported[i];
-        return file !== undefined;
-      }).length;
-
       if (accumulated.findings.length > 0) {
         updatePipelineStep(0, {
           status: "complete",
-          detail: `${supported.length} file${supported.length === 1 ? "" : "s"} normalised · ${totalRaw} raw findings ingested`,
+          detail: `${completedUploads} file${completedUploads === 1 ? "" : "s"} normalised · ${totalRaw} raw findings ingested`,
         });
         updatePipelineStep(1, {
           status: "complete",

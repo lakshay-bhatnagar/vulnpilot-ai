@@ -17,7 +17,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,4 +65,7 @@ async def upload_scan(file: UploadFile = File(...)) -> ScanAnalysisResponse:
     if not findings:
         raise HTTPException(status_code=422, detail="No vulnerabilities were found in the uploaded file.")
 
-    return process_vulnerabilities(findings)
+    try:
+        return await process_vulnerabilities(findings)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

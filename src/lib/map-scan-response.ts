@@ -89,7 +89,7 @@ export function mapApiFinding(item: ApiVulnerabilityItem, index: number): Findin
     response,
     poc: item.generated_poc?.trim() || `# PoC stub\n# Target: ${item.target_url}\ncurl -i '${item.target_url}'`,
     badCode: "# Vulnerable pattern detected by scanner — review server-side validation and authz.",
-    goodCode: remediation,
+    goodCode: item.secure_code_fix?.trim() || remediation,
     execSummary: `${severityStylesLabel(severity)}: ${item.title}. ${remediation}`,
   };
 }

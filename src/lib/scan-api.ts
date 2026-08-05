@@ -13,6 +13,7 @@ export type ApiVulnerabilityItem = {
   request_payload?: string | null;
   generated_poc?: string | null;
   remediation?: string | null;
+  secure_code_fix?: string | null;
   mitre_attack?: string | null;
 };
 
