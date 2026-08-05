@@ -1,4 +1,4 @@
-"""OpenRouter-backed enrichment and deduplication for scanner findings."""
+"""OpenRouter-backed enrichment and deduplication for scanner findings with automatic model fallbacks."""
 
 import json
 import re
@@ -72,7 +72,6 @@ def _extract_json(content: str) -> dict[str, object]:
     """Accept a strict JSON response and gracefully handle an accidental code fence."""
     cleaned = content.strip()
     if cleaned.startswith("```"):
-        # NEW (Correct whitespace matching)
         cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.IGNORECASE)
     try:
         parsed = json.loads(cleaned)
@@ -84,7 +83,7 @@ def _extract_json(content: str) -> dict[str, object]:
 
 
 async def process_vulnerabilities(findings: list[VulnerabilityItem]) -> ScanAnalysisResponse:
-    """Ask OpenRouter to enrich parsed findings and return a validated API response."""
+    """Ask OpenRouter to enrich parsed findings, automatically failing over across free models if rate-limited."""
     settings = get_settings()
     if not settings.openrouter_api_key:
         raise RuntimeError(
@@ -93,18 +92,18 @@ async def process_vulnerabilities(findings: list[VulnerabilityItem]) -> ScanAnal
 
     raw_count = len(findings)
     scanner_payload = [finding.model_dump(mode="json") for finding in findings]
-    request_payload = {
-        "model": settings.openrouter_model,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": json.dumps({"findings": scanner_payload}, ensure_ascii=False),
-            },
-        ],
-        "temperature": 0.1,
-        # "response_format": {"type": "json_object"},
-    }
+    
+    # Primary model configured in .env plus reliable $0/M fallback candidates
+    candidate_models = [
+        settings.openrouter_model,
+        "google/gemma-2-9b-it:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free",
+        "mistralai/mistral-7b-instruct:free",
+    ]
+    # Remove duplicates while preserving list order
+    fallback_models = list(dict.fromkeys(candidate_models))
+
     headers = {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
@@ -112,30 +111,45 @@ async def process_vulnerabilities(findings: list[VulnerabilityItem]) -> ScanAnal
         "X-Title": "VulnPilot AI",
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(90.0)) as client:
-            response = await client.post(
-                OPENROUTER_COMPLETIONS_URL,
-                headers=headers,
-                json=request_payload,
-            )
-            response.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        detail = exc.response.text[:500]
-        raise RuntimeError(
-            f"OpenRouter analysis request failed ({exc.response.status_code}): {detail}"
-        ) from exc
-    except httpx.HTTPError as exc:
-        raise RuntimeError("Unable to reach OpenRouter for scan analysis.") from exc
+    last_exception = None
 
-    try:
-        completion = response.json()
-        content = completion["choices"][0]["message"]["content"]
-        if not isinstance(content, str):
-            raise TypeError("completion content was not text")
-        analysis = ScanAnalysisResponse.model_validate(_extract_json(content))
-    except (KeyError, IndexError, TypeError, ValidationError, RuntimeError) as exc:
-        raise RuntimeError("OpenRouter returned an analysis that does not match the scan schema.") from exc
+    async with httpx.AsyncClient(timeout=httpx.Timeout(90.0)) as client:
+        for model in fallback_models:
+            request_payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {
+                        "role": "user",
+                        "content": json.dumps({"findings": scanner_payload}, ensure_ascii=False),
+                    },
+                ],
+                "temperature": 0.1,
+            }
 
-    # Metrics are computed server-side so they always match the findings sent to the UI.
-    return analysis.model_copy(update={"summary": _build_summary(raw_count, analysis.findings)})
+            try:
+                print(f"[OpenRouter] Requesting analysis using model: {model}")
+                response = await client.post(
+                    OPENROUTER_COMPLETIONS_URL,
+                    headers=headers,
+                    json=request_payload,
+                )
+                response.raise_for_status()
+
+                completion = response.json()
+                content = completion["choices"][0]["message"]["content"]
+                if not isinstance(content, str):
+                    raise TypeError("Completion content was not text")
+
+                analysis = ScanAnalysisResponse.model_validate(_extract_json(content))
+                print(f"[OpenRouter] Successfully processed scan using: {model}")
+                return analysis.model_copy(update={"summary": _build_summary(raw_count, analysis.findings)})
+
+            except Exception as exc:
+                print(f"[OpenRouter] Model '{model}' failed ({type(exc).__name__}). Retrying with next fallback model...")
+                last_exception = exc
+                continue
+
+    raise RuntimeError(
+        f"All OpenRouter fallback models failed or were rate-limited. Last error: {last_exception}"
+    )
