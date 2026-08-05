@@ -565,8 +565,8 @@ function VulnerabilitiesPage() {
     });
   }, [severity, owasp, tool, query]);
 
-  const selected =
-    findings.find((f) => f.id === selectedId) ?? filtered[0] ?? findings[0];
+  const selected: Finding =
+    findings.find((f) => f.id === selectedId) ?? filtered[0] ?? findings[0]!;
 
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5">
