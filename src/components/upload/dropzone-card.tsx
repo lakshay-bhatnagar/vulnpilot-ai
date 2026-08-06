@@ -12,7 +12,7 @@ const SUPPORTED_TOOLS = [
   "Wireshark PCAP",
 ];
 
-const ACCEPTED_EXTENSIONS = [".xml", ".json"];
+const ACCEPTED_EXTENSIONS = [".xml", ".json", ".nessus", ".pcap", ".pcapng"];
 
 function isAcceptedFile(file: File): boolean {
   const lower = file.name.toLowerCase();
@@ -72,7 +72,7 @@ export function DropzoneCard({
           <input
             type="file"
             multiple
-            accept=".xml,.json"
+            accept=".xml,.json,.nessus,.pcap,.pcapng"
             disabled={disabled}
             className="sr-only"
             onChange={(e) => {
@@ -93,11 +93,11 @@ export function DropzoneCard({
           <p className="mt-1 text-sm text-muted-foreground">
             {disabled
               ? "Uploads are disabled while the AI pipeline is running"
-              : "or click to browse — Burp .xml or Nuclei .json"}
+              : "or click to browse — Burp, Nuclei, Nessus, or Wireshark exports"}
           </p>
           <p className="mt-3 flex items-center gap-1.5 font-mono text-xs text-muted-foreground/80">
             <FolderOpen className="h-3.5 w-3.5" />
-            .xml · .json
+            .xml · .json · .nessus · .pcap · .pcapng
           </p>
         </label>
 

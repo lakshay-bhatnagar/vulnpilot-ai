@@ -1,13 +1,18 @@
 import logging
+from time import perf_counter
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import get_settings
-from backend.models.schemas import ScanAnalysisResponse
-from backend.parsers.burp_parser import parse_burp_xml
-from backend.parsers.nuclei_parser import parse_nuclei_json
+from backend.models.schemas import ScanAnalysisMetadata, ScanAnalysisResponse
+from backend.parsers.factory import get_parser
+from backend.routes.report import router as report_router
+from backend.routes.scans import router as scans_router
+from backend.routes.projects import router as projects_router
 from backend.services.ai_engine import process_vulnerabilities
+from backend.services.project_service import project_service
+from backend.services.report_service import report_service
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -17,6 +22,9 @@ app = FastAPI(
     description="Backend API for ingesting scanner artifacts and enriching vulnerability findings.",
     version="1.0.0",
 )
+app.include_router(report_router)
+app.include_router(scans_router)
+app.include_router(projects_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,7 +48,8 @@ async def health_check() -> dict[str, str]:
 
 
 @app.post(f"{settings.api_prefix}/scan/upload", response_model=ScanAnalysisResponse)
-async def upload_scan(file: UploadFile = File(...)) -> ScanAnalysisResponse:
+async def upload_scan(file: UploadFile = File(...), project_id: str | None = Form(default=None)) -> ScanAnalysisResponse:
+    processing_started = perf_counter()
     if not file.filename:
         raise HTTPException(status_code=400, detail="Uploaded file must have a filename.")
 
@@ -58,15 +67,9 @@ async def upload_scan(file: UploadFile = File(...)) -> ScanAnalysisResponse:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
     try:
-        if filename.endswith(".xml"):
-            findings = parse_burp_xml(content)
-        elif filename.endswith(".json"):
-            findings = parse_nuclei_json(content)
-        else:
-            raise HTTPException(
-                status_code=415,
-                detail="Unsupported file type. Upload a Burp Suite .xml or Nuclei .json export.",
-            )
+        findings = get_parser(filename, content)(content)
+    except ValueError as exc:
+        raise HTTPException(status_code=415, detail=str(exc)) from exc
     except HTTPException:
         raise
     except Exception as exc:
@@ -76,8 +79,27 @@ async def upload_scan(file: UploadFile = File(...)) -> ScanAnalysisResponse:
         raise HTTPException(status_code=422, detail="No vulnerabilities were found in the uploaded file.")
 
     try:
-        analysis = await process_vulnerabilities(findings)
+        analysis = await process_vulnerabilities(findings, project_service.historical_context(project_id))
+        existing_metadata = analysis.analysis_metadata or ScanAnalysisMetadata()
+        analysis = analysis.model_copy(
+            update={
+                "analysis_metadata": existing_metadata.model_copy(
+                    update={
+                        "detected_scanner": ", ".join(sorted({finding.tool_source for finding in findings})),
+                        "processing_duration_ms": round((perf_counter() - processing_started) * 1000),
+                    }
+                )
+            }
+        )
+        if project_id:
+            history = project_service.record_completed_scan(
+                project_id, None, analysis, scan_type="uploaded-artifact", target=file.filename,
+            )
+            analysis = analysis.model_copy(update={"analysis_metadata": analysis.analysis_metadata.model_copy(update={"historical_summary": history})})
+        report_service.store_scan(analysis)
         logger.info("[Scan upload] Returning response: %s", analysis.model_dump(mode="json"))
         return analysis
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

@@ -1,14 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 export function ScanConfigBar({
   disabled = false,
@@ -19,35 +11,7 @@ export function ScanConfigBar({
 }) {
   return (
     <Card className="border-border/60 bg-card">
-      <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-end">
-        <div className="flex-1 space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Target Environment</Label>
-          <Select defaultValue="production" disabled={disabled}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="production">Production</SelectItem>
-              <SelectItem value="staging">Staging</SelectItem>
-              <SelectItem value="internal-dev">Internal Dev</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex-1 space-y-1.5">
-          <Label className="text-xs text-muted-foreground">LLM Model</Label>
-          <Select defaultValue="claude-3-7-sonnet" disabled={disabled}>
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="claude-3-7-sonnet">Claude 3.7 Sonnet</SelectItem>
-              <SelectItem value="deepseek-r1-local">DeepSeek-R1 Local</SelectItem>
-              <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
+      <CardContent className="flex justify-end p-4">
         <Button
           type="button"
           disabled={disabled}

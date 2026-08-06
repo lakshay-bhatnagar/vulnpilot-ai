@@ -75,9 +75,9 @@ export function mapApiFinding(item: ApiVulnerabilityItem, index: number): Findin
     cweLong: longLabel("", item.cwe, "CWE-693: Protection Mechanism Failure"),
     mitre: item.mitre_attack ?? "T1190",
     mitreLong: longLabel("", item.mitre_attack, "T1190 - Exploit Public-Facing Application"),
-    capec: "CAPEC-100",
-    capecLong: "CAPEC-100 - Exploit Web Application",
-    cvss: SEVERITY_TO_CVSS[severity],
+    capec: item.capec ?? "CAPEC-100",
+    capecLong: item.capec ?? "CAPEC-100 - Exploit Web Application",
+    cvss: Number(item.cvss) || SEVERITY_TO_CVSS[severity],
     tools: [item.tool_source],
     url: item.target_url,
     method: parseHttpMethod(item.request_payload),
@@ -91,6 +91,12 @@ export function mapApiFinding(item: ApiVulnerabilityItem, index: number): Findin
     badCode: "# Vulnerable pattern detected by scanner — review server-side validation and authz.",
     goodCode: item.secure_code_fix?.trim() || remediation,
     execSummary: `${severityStylesLabel(severity)}: ${item.title}. ${remediation}`,
+    cve: item.cve ?? undefined,
+    packageName: item.package_name ?? undefined,
+    installedVersion: item.installed_version ?? undefined,
+    fixedVersion: item.fixed_version ?? undefined,
+    exploitability: item.exploitability ?? undefined,
+    affectedFile: item.affected_file ?? undefined,
   };
 }
 
@@ -141,7 +147,9 @@ export function mapScanAnalysisResponse(response: ScanAnalysisResponse, idOffset
 } {
   const findings = response.findings.map((item, index) => mapApiFinding(item, idOffset + index));
   const owaspCategories = Array.from(new Set(findings.map((f) => f.owaspLong))).sort();
-  const toolSources = Array.from(new Set(findings.flatMap((f) => f.tools))).sort();
+  const toolSources = Array.from(
+    new Set([...findings.flatMap((finding) => finding.tools), ...response.summary.tools_detected]),
+  ).sort();
 
   return {
     findings,

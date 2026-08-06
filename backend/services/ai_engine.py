@@ -3,6 +3,7 @@
 import json
 import re
 from collections.abc import Sequence
+from time import perf_counter
 
 import httpx
 from pydantic import ValidationError
@@ -10,6 +11,7 @@ from pydantic import ValidationError
 from backend.config import get_settings
 from backend.models.schemas import (
     ScanAnalysisResponse,
+    ScanAnalysisMetadata,
     ScanSummaryMetrics,
     Severity,
     SeverityBreakdown,
@@ -24,10 +26,11 @@ commentary, matching this exact structure:
 {
   "findings": [{
     "title": "string", "tool_source": "string", "severity": "Critical|High|Medium|Low",
-    "target_url": "string", "cwe": "CWE-N", "owasp_category": "Axx:2021 - name",
+    "target_url": "string", "cwe": "CWE-N", "cve": "CVE-N|null", "cvss": "number|string|null", "owasp_category": "Axx:2021 - name",
     "raw_evidence": "string|null", "request_payload": "string|null",
     "generated_poc": "string|null", "remediation": "string|null",
-    "secure_code_fix": "string|null", "mitre_attack": "string|null"
+    "secure_code_fix": "string|null", "mitre_attack": "string|null", "capec": "CAPEC-N|null", "references": ["string"],
+    "package_name": "string|null", "installed_version": "string|null", "fixed_version": "string|null", "exploitability": "string|null", "affected_file": "string|null"
   }],
   "summary": {
     "total_raw_findings": 0, "unique_findings": 0, "deduplicated_count": 0,
@@ -38,10 +41,15 @@ commentary, matching this exact structure:
 
 Deduplicate findings that share the same normalized endpoint and root vulnerability class,
 while retaining useful evidence from all duplicates. Map each retained finding to OWASP Top 10
-(2021) and an appropriate CWE ID. Provide a realistic, minimally scoped proof-of-concept payload
+(2021), an appropriate CWE ID, MITRE ATT&CK technique, and CAPEC attack pattern. Provide a realistic, minimally scoped proof-of-concept payload
 for authorized testing and a secure code fix snippet. Never invent endpoints or claim a finding
 was verified when the scanner evidence does not support it. Preserve scanner severity unless
-there is clear evidence it is wrong."""
+there is clear evidence it is wrong. For dependency findings, preserve package name, installed/fixed versions,
+affected manifest file, exploitability evidence, CVE, CVSS, and upgrade recommendation."""
+
+HISTORICAL_CONTEXT_INSTRUCTION = """When historical_context is present, use the prior findings and prior risk score to
+prioritize recurring risk in remediation language. Do not fabricate historical findings; the
+application performs authoritative new/resolved/recurring classification after your response."""
 
 
 def _build_summary(raw_count: int, findings: Sequence[VulnerabilityItem]) -> ScanSummaryMetrics:
@@ -82,9 +90,12 @@ def _extract_json(content: str) -> dict[str, object]:
     return parsed
 
 
-async def process_vulnerabilities(findings: list[VulnerabilityItem]) -> ScanAnalysisResponse:
+async def process_vulnerabilities(
+    findings: list[VulnerabilityItem], historical_context: dict[str, object] | None = None,
+) -> ScanAnalysisResponse:
     """Ask OpenRouter to enrich parsed findings, automatically failing over across free models if rate-limited."""
     settings = get_settings()
+    processing_started = perf_counter()
     if not settings.openrouter_api_key:
         raise RuntimeError(
             "OPENROUTER_API_KEY is not configured. Add it to backend/.env before uploading a scan."
@@ -119,10 +130,13 @@ async def process_vulnerabilities(findings: list[VulnerabilityItem]) -> ScanAnal
             request_payload = {
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": f"{SYSTEM_PROMPT}\n\n{HISTORICAL_CONTEXT_INSTRUCTION}"},
                     {
                         "role": "user",
-                        "content": json.dumps({"findings": scanner_payload}, ensure_ascii=False),
+                        "content": json.dumps(
+                            {"findings": scanner_payload, "historical_context": historical_context or {}},
+                            ensure_ascii=False,
+                        ),
                     },
                 ],
                 "temperature": 0.1,
@@ -148,7 +162,16 @@ async def process_vulnerabilities(findings: list[VulnerabilityItem]) -> ScanAnal
 
                 analysis = ScanAnalysisResponse.model_validate(_extract_json(content))
                 print(f"[OpenRouter] Successfully processed scan using: {model}")
-                return analysis.model_copy(update={"summary": _build_summary(raw_count, analysis.findings)})
+                return analysis.model_copy(
+                    update={
+                        "summary": _build_summary(raw_count, analysis.findings),
+                        "analysis_metadata": ScanAnalysisMetadata(
+                            ai_provider="OpenRouter",
+                            ai_model=model,
+                            processing_duration_ms=round((perf_counter() - processing_started) * 1000),
+                        ),
+                    }
+                )
 
             except Exception as exc:
                 print(f"[OpenRouter] Model '{model}' failed ({type(exc).__name__}). Trying next fallback model...")

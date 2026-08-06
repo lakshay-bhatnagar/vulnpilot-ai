@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues burpVersion="2025.1"><issue><name>Reflected XSS</name><severity>High</severity><host>https://example.test</host><path>/search</path><issueDetail>Reflected input observed.</issueDetail></issue></issues>

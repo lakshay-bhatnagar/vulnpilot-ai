@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Play, Shield } from "lucide-react";
+import { ScanRunDialog } from "@/components/scan/scan-run-dialog";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +19,7 @@ const targets = [
 ];
 
 export function TopHeader() {
+  const [dialogOpen, setDialogOpen] = useState(false);
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-card/80 px-4 backdrop-blur-md">
       <div className="flex items-center gap-3">
@@ -50,11 +53,12 @@ export function TopHeader() {
           </Select>
         </div>
 
-        <Button className="gap-2 bg-primary text-primary-foreground shadow-primary/35 shadow-lg hover:bg-primary/90">
+        <Button onClick={() => setDialogOpen(true)} className="gap-2 bg-primary text-primary-foreground shadow-primary/35 shadow-lg hover:bg-primary/90">
           <Play className="h-4 w-4 fill-current" />
           Run Scan
         </Button>
       </div>
+      <ScanRunDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </header>
   );
 }

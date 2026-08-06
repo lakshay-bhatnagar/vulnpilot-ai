@@ -22,6 +22,11 @@ function fileIcon(name: string) {
   return name.toLowerCase().endsWith(".json") ? FileJson : FileCode2;
 }
 
+function formatDuration(durationMs?: number): string {
+  if (durationMs === undefined) return "Not available";
+  return durationMs < 1000 ? `${durationMs} ms` : `${(durationMs / 1000).toFixed(1)} s`;
+}
+
 export function AnalysisPipelineCard() {
   const { uploadFiles, pipelineSteps, isLoading, sessionLabel } = useScan();
   const hasActivity = uploadFiles.length > 0;
@@ -93,6 +98,15 @@ export function AnalysisPipelineCard() {
                       {f.status === "error" ? "Err" : `${f.progress}%`}
                     </span>
                   </div>
+                  {(f.status === "complete" || f.status === "error") && (
+                    <div className="mt-3 grid gap-2 border-t border-border/50 pt-3 text-xs sm:grid-cols-2">
+                      <div><p className="text-muted-foreground">Detected Scanner</p><p className="mt-0.5 font-medium text-foreground">{f.detectedScanner ?? f.tool}</p></div>
+                      <div><p className="text-muted-foreground">Number of findings</p><p className="mt-0.5 font-medium text-foreground">{f.findingCount ?? "—"}</p></div>
+                      <div><p className="text-muted-foreground">Analysis status</p><p className="mt-0.5 font-medium text-foreground">{f.analysisStatus ?? (f.status === "complete" ? "Complete" : "Failed")}</p></div>
+                      <div><p className="text-muted-foreground">Processing duration</p><p className="mt-0.5 font-medium text-foreground">{formatDuration(f.processingDurationMs)}</p></div>
+                      {f.status === "complete" && <div className="sm:col-span-2"><p className="text-muted-foreground">AI Engine</p><p className="mt-0.5 font-medium text-foreground">{f.aiEngine ?? "OpenRouter"}</p></div>}
+                    </div>
+                  )}
                 </div>
               );
             })}

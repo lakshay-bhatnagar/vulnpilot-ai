@@ -8,7 +8,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { uploadScanFile } from "@/lib/scan-api";
+import { type ScanAnalysisResponse, uploadScanFile } from "@/lib/scan-api";
 import { mapScanAnalysisResponse, mergeScanResults } from "@/lib/map-scan-response";
 import {
   emptyDashboardMetrics,
@@ -25,6 +25,11 @@ export type UploadFileState = {
   tool: string;
   progress: number;
   status: UploadFileStatus;
+  detectedScanner?: string;
+  findingCount?: number;
+  analysisStatus?: string;
+  processingDurationMs?: number;
+  aiEngine?: string;
 };
 
 export type PipelineStepStatus = "complete" | "active" | "pending";
@@ -46,6 +51,7 @@ type ScanContextValue = {
   hasScanData: boolean;
   sessionLabel: string | null;
   uploadFilesBatch: (files: File[]) => Promise<boolean>;
+  setScanAnalysis: (analysis: ScanAnalysisResponse) => void;
 };
 
 const INITIAL_PIPELINE: PipelineStep[] = [
@@ -83,12 +89,16 @@ function inferTool(filename: string): string {
   const lower = filename.toLowerCase();
   if (lower.endsWith(".xml")) return "Burp Suite";
   if (lower.endsWith(".json")) return "Nuclei";
+  if (lower.endsWith(".nessus")) return "Nessus";
+  if (lower.endsWith(".pcap") || lower.endsWith(".pcapng")) return "Wireshark PCAP";
   return "Scanner";
 }
 
 function isSupportedScanFile(file: File): boolean {
   const lower = file.name.toLowerCase();
-  return lower.endsWith(".xml") || lower.endsWith(".json");
+  return [".xml", ".json", ".nessus", ".pcap", ".pcapng"].some((extension) =>
+    lower.endsWith(extension),
+  );
 }
 
 export function ScanProvider({ children }: { children: ReactNode }) {
@@ -113,6 +123,14 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     setUploadFiles((files) => files.map((file) => (file.id === id ? { ...file, ...patch } : file)));
   }, []);
 
+  const setScanAnalysis = useCallback((analysis: ScanAnalysisResponse) => {
+    const mapped = mapScanAnalysisResponse(analysis);
+    setFindings(mapped.findings);
+    setMetrics(mapped.metrics);
+    setOwaspCategories(mapped.owaspCategories);
+    setToolSources(mapped.toolSources);
+  }, []);
+
   const uploadFilesBatch = useCallback(
     async (files: File[]) => {
       const supported = files.filter(isSupportedScanFile);
@@ -120,7 +138,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
 
       if (unsupported.length > 0) {
         toast.error("Unsupported file type", {
-          description: "Only Burp Suite .xml and Nuclei .json exports are supported right now.",
+          description: "Supported exports: Burp XML, Nuclei JSON, Nessus, PCAP, and PCAPNG.",
         });
       }
 
@@ -203,11 +221,22 @@ export function ScanProvider({ children }: { children: ReactNode }) {
           totalUnique += response.summary.unique_findings;
           completedUploads += 1;
 
-          updateUploadFile(fileState.id, { status: "complete", progress: 100 });
+          const metadata = response.analysis_metadata;
+          updateUploadFile(fileState.id, {
+            status: "complete",
+            progress: 100,
+            detectedScanner: metadata?.detected_scanner || response.summary.tools_detected.join(", "),
+            findingCount: response.summary.unique_findings,
+            analysisStatus: "Complete",
+            processingDurationMs: metadata?.processing_duration_ms ?? undefined,
+            aiEngine: metadata?.ai_model
+              ? `${metadata.ai_provider} (${metadata.ai_model})`
+              : metadata?.ai_provider,
+          });
         } catch (error) {
           console.error("[VulnPilot upload] file analysis failed", error);
           const message = error instanceof Error ? error.message : "Upload failed";
-          updateUploadFile(fileState.id, { status: "error", progress: 100 });
+          updateUploadFile(fileState.id, { status: "error", progress: 100, analysisStatus: "Failed" });
           toast.error(`Failed to analyze ${file.name}`, { description: message });
         }
       }
@@ -264,6 +293,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       hasScanData,
       sessionLabel,
       uploadFilesBatch,
+      setScanAnalysis,
     }),
     [
       findings,
@@ -276,6 +306,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       hasScanData,
       sessionLabel,
       uploadFilesBatch,
+      setScanAnalysis,
     ],
   );
 

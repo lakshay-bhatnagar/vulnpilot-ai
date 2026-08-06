@@ -21,6 +21,9 @@ backend/.venv/
 backend/**/__pycache__/
 *.pyc
 
+# Runtime scan artifacts and the local SQLite project database
+/storage/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

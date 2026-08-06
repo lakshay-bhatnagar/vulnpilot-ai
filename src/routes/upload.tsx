@@ -23,10 +23,7 @@ function UploadPage() {
   const { uploadFilesBatch, isLoading } = useScan();
 
   const handleFilesSelected = async (files: File[]) => {
-    const success = await uploadFilesBatch(files);
-    if (success) {
-      navigate({ to: "/vulnerabilities" });
-    }
+    await uploadFilesBatch(files);
   };
 
   return (

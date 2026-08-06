@@ -407,6 +407,7 @@ function InspectorHeader({ finding }: { finding: Finding }) {
         </span>
       </div>
       <h2 className="text-lg font-semibold leading-snug text-foreground">{finding.title}</h2>
+      {finding.packageName && <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>Package: <span className="font-mono text-foreground">{finding.packageName}@{finding.installedVersion ?? "unknown"}</span></span>{finding.fixedVersion && <span>Fixed: <span className="font-mono text-severity-low">{finding.fixedVersion}</span></span>}{finding.cve && <span>{finding.cve}</span>}{finding.exploitability && <span>Exploitability: {finding.exploitability}</span>}</div>}
       <div className="flex items-center gap-2 text-xs">
         <Target className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="font-mono text-foreground/80">{finding.method}</span>
@@ -454,6 +455,8 @@ function InspectorTabs({ finding }: { finding: Finding }) {
               <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">{finding.business}</p>
             </div>
           </section>
+
+          {finding.packageName && <section className="rounded-md border border-border/60 bg-card/40 p-3"><h3 className="text-xs font-semibold uppercase tracking-widest text-ai-cyan">Dependency remediation</h3><dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2"><div><dt className="text-xs text-muted-foreground">Affected file</dt><dd className="font-mono text-xs">{finding.affectedFile ?? finding.url}</dd></div><div><dt className="text-xs text-muted-foreground">Upgrade recommendation</dt><dd>{finding.business}</dd></div></dl></section>}
 
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">

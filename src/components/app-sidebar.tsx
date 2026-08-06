@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutGrid, UploadCloud, ShieldAlert, FileText, Settings, Shield } from "lucide-react";
+import { LayoutGrid, UploadCloud, ShieldAlert, FileText, Settings, Shield, FolderKanban } from "lucide-react";
 
 import {
   Sidebar,
@@ -17,6 +17,7 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutGrid },
+  { title: "Projects", url: "/projects", icon: FolderKanban },
   { title: "File Upload & Scan", url: "/upload", icon: UploadCloud },
   { title: "Vulnerabilities", url: "/vulnerabilities", icon: ShieldAlert },
   { title: "Executive Reports", url: "/reports", icon: FileText },
