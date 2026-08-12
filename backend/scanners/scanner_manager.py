@@ -38,6 +38,8 @@ from backend.services.scan_pipeline import deduplicate_findings, parse_scanner_o
 from backend.services.source_ingestion import source_ingestion_service
 from backend.services.mobile_ingestion import mobile_ingestion_service
 from backend.services.project_service import project_service
+from backend.scanner_runtime.tool_registry import build_default_registry
+from backend.scanners.mobile_scanner import mobile_scanner
 
 
 class ScannerManager:
@@ -47,6 +49,7 @@ class ScannerManager:
         self._scanners: dict[str, ScannerAdapter] = {}
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self._active_scanners: dict[str, list[ScannerAdapter]] = {}
+        self._runtime_registry = build_default_registry()
 
     def register(self, scanner: ScannerAdapter) -> None:
         key = scanner.name.lower()
@@ -151,8 +154,8 @@ class ScannerManager:
         try:
             self._job_manager.update(job_id, status=ScanJobStatus.RUNNING, progress=2, current_phase="Detecting and staging mobile package")
             prepared = mobile_ingestion_service.prepare(output_dir, filename, content)
-            scanner_names = ("mobsf",) if prepared.package_type == "ipa" else resolve_profile("mobile_assessment", request.profile_mode)
-            scanners = [self._scanners[name] for name in scanner_names if name in self._scanners]
+            plan = mobile_scanner.build_plan(prepared.package_type, prepared.package_path, output_dir, request.profile_mode)
+            scanners = [self._scanners[name] for name in plan.scanners if name in self._scanners]
             if not scanners:
                 raise RuntimeError("No mobile scanner adapters are registered.")
             self._active_scanners[job_id] = scanners
@@ -164,8 +167,7 @@ class ScannerManager:
                 scanner=", ".join(scanner.name for scanner in scanners),
                 source_type="mobile-package",
             )
-            targets = {"apktool": str(prepared.package_path), "jadx": str(prepared.package_path), "mobsf": str(prepared.package_path), "trivy": str(output_dir / "jadx-decompiled")}
-            await self._execute(job_id, scanners, request, execution_target=str(prepared.package_path), execution_targets=targets)
+            await self._execute(job_id, scanners, request, execution_target=str(prepared.package_path), execution_targets=plan.targets)
         except (RuntimeError, ValueError, PermissionError, OSError) as exc:
             completed = datetime.now(UTC)
             self._job_manager.update(job_id, status=ScanJobStatus.FAILED, progress=100, current_phase="Mobile package preparation failed", completed_time=completed, error_message=str(exc), raw_output_path=str(output_dir))
@@ -217,13 +219,24 @@ class ScannerManager:
                     status=ScanJobStatus.RUNNING,
                     progress=10 + int(35 * (index - 1) / total_scanners),
                     current_scanner=scanner.name,
-                    current_phase=f"Running {scanner.name} ({index}/{total_scanners})",
+                    current_phase=(f"{mobile_scanner.phase_for(scanner.name)} ({index}/{total_scanners})" if request.scan_profile == "mobile_assessment" else f"Running {scanner.name} ({index}/{total_scanners})"),
                     tool_results=tool_results,
                 )
                 try:
                     tool_args = request.custom_args if scanner.name in {"nmap", "nuclei"} else []
                     scanner_target = (execution_targets or {}).get(scanner.name, execution_target or request.target)
-                    result = await scanner.run_scan(job_id, scanner_target, "default" if request.scan_profile else request.scan_type, output_dir, tool_args)
+                    scan_type = "default" if request.scan_profile else request.scan_type
+                    try:
+                        runtime_scanner = self._runtime_registry.get(scanner.name)
+                        runtime_health = await runtime_scanner.health_check()
+                    except ValueError:
+                        runtime_scanner, runtime_health = None, {"docker_available": False}
+                    if scanner.executable_path() is None and runtime_scanner is not None and runtime_health["docker_available"]:
+                        self._job_manager.update(job_id, current_phase=f"Launching {scanner.name.title()} container...", current_scanner=scanner.name, tool_results=tool_results)
+                        runtime_output = await runtime_scanner.run(job_id, scanner_target, scan_type, output_dir, tool_args)
+                        result = ScanExecutionResult(raw_output_path=runtime_output)
+                    else:
+                        result = await scanner.run_scan(job_id, scanner_target, scan_type, output_dir, tool_args)
                     tool_results[-1] = ScanToolResult(scanner=scanner.name, status="Completed", raw_output_path=str(result.raw_output_path))
                     results.append((scanner, result))
                 except (RuntimeError, ValueError) as exc:
@@ -239,7 +252,7 @@ class ScannerManager:
                 self._job_manager.update(
                     job_id,
                     progress=10 + int(35 * index / total_scanners),
-                    current_phase=f"{scanner.name} completed ({index}/{total_scanners})",
+                    current_phase=(f"{mobile_scanner.phase_for(scanner.name)} completed ({index}/{total_scanners})" if request.scan_profile == "mobile_assessment" else f"{scanner.name} completed ({index}/{total_scanners})"),
                     tool_results=tool_results,
                 )
 
@@ -268,7 +281,7 @@ class ScannerManager:
             normalized = deduplicate_findings(normalized)
             normalized_path = output_dir / "normalized.json"
             write_json(normalized_path, [finding.model_dump(mode="json") for finding in normalized])
-            self._job_manager.update(job_id, status=ScanJobStatus.AI_ANALYSIS, progress=75, current_scanner=None, current_phase="Running AI analysis across normalized findings", finding_count=len(normalized), normalized_output_path=str(normalized_path))
+            self._job_manager.update(job_id, status=ScanJobStatus.AI_ANALYSIS, progress=75, current_scanner=None, current_phase="Generating AI Analysis", finding_count=len(normalized), normalized_output_path=str(normalized_path))
             history_context = project_service.historical_context(request.project_id)
             analysis = await process_vulnerabilities(normalized, history_context) if history_context is not None else await process_vulnerabilities(normalized)
             completed_tools = {item.scanner.title() if item.scanner != "httpx" else "HTTPX" for item in tool_results if item.status == "Completed"}
@@ -299,7 +312,7 @@ class ScannerManager:
                     job_id,
                     status=ScanJobStatus.GENERATING_REPORT,
                     progress=95,
-                    current_phase="Generating executive PDF from stored scan results",
+                    current_phase="Generating Report",
                     finding_count=analysis.summary.unique_findings,
                     ai_output_path=str(ai_path),
                     analysis=analysis,

@@ -35,11 +35,29 @@ def detect_mobile_type(filename: str, content: bytes) -> str:
 
 
 class MobileIngestionService:
+    @staticmethod
+    def _extract_ipa(package_path: Path, destination: Path) -> None:
+        """Extract IPA static content safely for source-oriented analysis tools."""
+        destination.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(package_path) as archive:
+            for member in archive.infolist():
+                target = (destination / member.filename).resolve()
+                if destination.resolve() not in target.parents and target != destination.resolve():
+                    raise ValueError("IPA archive contains an unsafe path.")
+                if member.is_dir():
+                    target.mkdir(parents=True, exist_ok=True)
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(member) as source, target.open("wb") as output:
+                    output.write(source.read())
+
     def prepare(self, scan_directory: Path, filename: str, content: bytes) -> PreparedMobilePackage:
         package_type = detect_mobile_type(filename, content)
         scan_directory.mkdir(parents=True, exist_ok=True)
         package_path = scan_directory / f"mobile-app.{package_type}"
         package_path.write_bytes(content)
+        if package_type == "ipa":
+            self._extract_ipa(package_path, scan_directory / "ipa-static")
         return PreparedMobilePackage(package_path, package_type)
 
 

@@ -1,0 +1,46 @@
+services:
+  nmap:
+    build: { context: ., dockerfile: docker/scanners/nmap/Dockerfile }
+    image: vulnpilot/nmap:dev
+    profiles: ["scanners"]
+  nuclei:
+    build: { context: ., dockerfile: docker/scanners/nuclei/Dockerfile }
+    image: vulnpilot/nuclei:dev
+    profiles: ["scanners"]
+  trivy:
+    build: { context: ., dockerfile: docker/scanners/trivy/Dockerfile }
+    image: vulnpilot/trivy:dev
+    profiles: ["scanners"]
+  semgrep:
+    build: { context: ., dockerfile: docker/scanners/semgrep/Dockerfile }
+    image: vulnpilot/semgrep:dev
+    profiles: ["scanners"]
+  grype:
+    build: { context: ., dockerfile: docker/scanners/grype/Dockerfile }
+    image: vulnpilot/grype:dev
+    profiles: ["scanners"]
+  syft:
+    build: { context: ., dockerfile: docker/scanners/syft/Dockerfile }
+    image: vulnpilot/syft:dev
+    profiles: ["scanners"]
+  gitleaks:
+    build: { context: ., dockerfile: docker/scanners/gitleaks/Dockerfile }
+    image: vulnpilot/gitleaks:dev
+    profiles: ["scanners"]
+  dependency-check:
+    build: { context: ., dockerfile: docker/scanners/dependency-check/Dockerfile }
+    image: vulnpilot/dependency-check:dev
+    profiles: ["scanners"]
+  jadx:
+    build: { context: ., dockerfile: docker/scanners/jadx/Dockerfile }
+    image: vulnpilot/jadx:dev
+    profiles: ["scanners"]
+  apktool:
+    build: { context: ., dockerfile: docker/scanners/apktool/Dockerfile }
+    image: vulnpilot/apktool:dev
+    profiles: ["scanners"]
+  mobsf:
+    build: { context: ., dockerfile: docker/scanners/mobsf/Dockerfile }
+    image: vulnpilot/mobsf:dev
+    profiles: ["mobsf"]
+    ports: ["127.0.0.1:8001:8000"]

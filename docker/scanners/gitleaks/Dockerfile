@@ -1,0 +1,1 @@
+FROM zricethezav/gitleaks:latest

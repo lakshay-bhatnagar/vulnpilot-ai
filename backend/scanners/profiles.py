@@ -33,7 +33,9 @@ PROFILES = {
         "comprehensive": ("naabu", "nmap", "nuclei"),
     }),
     "mobile_assessment": ScanProfile("mobile_assessment", "Mobile Assessment", {
-        "quick": ("mobsf",), "standard": ("apktool", "jadx", "mobsf", "trivy"), "comprehensive": ("apktool", "jadx", "mobsf", "trivy"),
+        "quick": ("mobsf",),
+        "standard": ("apktool", "jadx", "mobsf", "semgrep", "trivy", "syft", "osv-scanner"),
+        "comprehensive": ("apktool", "jadx", "mobsf", "semgrep", "trivy", "syft", "osv-scanner"),
     }),
     "source_code_assessment": ScanProfile("source_code_assessment", "Source Code Assessment", {
         "quick": ("semgrep",), "standard": ("semgrep",), "comprehensive": ("semgrep",),

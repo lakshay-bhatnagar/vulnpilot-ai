@@ -11,6 +11,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from backend.models.schemas import VulnerabilityItem
+from backend.scanners.runtime_base import BaseScanner
 
 
 @dataclass(frozen=True)

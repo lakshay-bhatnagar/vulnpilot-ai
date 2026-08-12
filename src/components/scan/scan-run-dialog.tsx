@@ -24,7 +24,7 @@ const PROFILES: { value: ScanProfile; label: string; description: string }[] = [
   { value: "external_attack_surface", label: "External Attack Surface", description: "Subdomain, DNS, HTTP, port, crawl, parameter, and template-driven coverage." },
   { value: "web_application_assessment", label: "Web Application Assessment", description: "HTTP discovery, crawling, parameter discovery, and Nuclei checks." },
   { value: "infrastructure_assessment", label: "Infrastructure Assessment", description: "Port discovery, service fingerprinting/NSE, and Nuclei checks." },
-  { value: "mobile_assessment", label: "Mobile Assessment", description: "APK: APKTool, JADX, MobSF, and Trivy when applicable. IPA: MobSF." },
+  { value: "mobile_assessment", label: "Mobile Assessment", description: "APK: APKTool, JADX, MobSF, Semgrep, Trivy, SBOM, and OSV dependency analysis. IPA: MobSF plus extracted static analysis." },
   { value: "source_code_assessment", label: "Source Code Assessment", description: "Available source-target checks through the installed scanner set." },
   { value: "software_composition_analysis", label: "Software Composition Analysis", description: "Generate an SBOM and identify vulnerable project dependencies with Syft, Trivy, and OSV Scanner." },
   { value: "custom_scan", label: "Custom Scan", description: "Choose one scanner and its scan type manually." },

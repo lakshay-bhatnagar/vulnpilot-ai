@@ -40,11 +40,23 @@ def deduplicate_findings(findings: list[VulnerabilityItem]) -> list[Vulnerabilit
         if existing is None:
             deduplicated[key] = finding
             continue
-        evidence = "\n\n--- Correlated scanner evidence ---\n".join(
-            item for item in (existing.raw_evidence, finding.raw_evidence) if item
-        )
+        evidence_blocks = []
+        if existing.raw_evidence:
+            evidence_blocks.append(f"[{existing.tool_source}]\n{existing.raw_evidence}")
+        if finding.raw_evidence:
+            evidence_blocks.append(f"[{finding.tool_source}]\n{finding.raw_evidence}")
+        evidence = "\n\n--- Correlated scanner evidence ---\n".join(evidence_blocks)
         tools = ", ".join(sorted(set((existing.tool_source + "," + finding.tool_source).split(","))))
-        deduplicated[key] = existing.model_copy(update={"tool_source": tools, "raw_evidence": evidence or existing.raw_evidence})
+        deduplicated[key] = existing.model_copy(update={
+            "tool_source": tools,
+            "raw_evidence": evidence or existing.raw_evidence,
+            "request_payload": existing.request_payload or finding.request_payload,
+            "cwe": existing.cwe or finding.cwe,
+            "cve": existing.cve or finding.cve,
+            "cvss": existing.cvss or finding.cvss,
+            "remediation": existing.remediation or finding.remediation,
+            "references": list(dict.fromkeys([*existing.references, *finding.references])),
+        })
     return list(deduplicated.values())
 
 

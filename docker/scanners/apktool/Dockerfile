@@ -1,0 +1,1 @@
+FROM openapk/apktool:latest
